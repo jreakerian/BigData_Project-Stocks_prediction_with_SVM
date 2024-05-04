@@ -3,7 +3,6 @@ import config.Configuration
 import data.{DataLoader, DataPreprocessor}
 import features.FeatureBuilder
 import model.StockSVMModel
-import org.apache.spark.ml.feature.VectorAssembler
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{col, lag, when}
 import sun.java2d.marlin.MarlinUtils.logInfo
@@ -19,7 +18,7 @@ object Main {
       .getOrCreate()
 
     // Enable log level setting from configuration
-    spark.sparkContext.setLogLevel("ERROR")
+    spark.sparkContext.setLogLevel("OFF")
 
     println("Starting the stock market prediction application...")
 
@@ -29,7 +28,6 @@ object Main {
 
     stockData = DataPreprocessor.cleanData(stockData)
 
-    logInfo("Adding label column...")
     stockData = stockData.withColumn("previousClose", lag(col("Close"), 1).over(Window.partitionBy("stockName").orderBy("Date")))
       .withColumn("label", when(col("Close") > col("previousClose"), 1).otherwise(0))
       .drop("previousClose")
@@ -38,13 +36,21 @@ object Main {
     println("Generating features...")
     stockData = FeatureBuilder.addAllFeatures(stockData)
 
+    stockData = FeatureBuilder.addROC(stockData, 10)
+    stockData = FeatureBuilder.addATR(stockData, 14)
+    stockData = FeatureBuilder.addStochasticOscillator(stockData, 14)
+
+    stockData.show(20,truncate = 0)
+
+    val (trainingData, testData) = StockSVMModel.splitData(stockData, 0.7)
+
     // Train the SVM model
     println("Training the SVM model...")
-    val model = StockSVMModel.trainModel(stockData)
+    val model = StockSVMModel.trainModel(trainingData)
 
     // Evaluate the model
     println("Evaluating model performance...")
-    val accuracy = StockSVMModel.evaluateModel(model, stockData)
+    val accuracy = StockSVMModel.evaluateModel(model, testData)
     println(s"Model accuracy: $accuracy")
 
     // Save the model if needed

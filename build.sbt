@@ -8,8 +8,12 @@ lazy val root = (project in file("."))
   .settings(
     name := "Big Data Poject"
   )
+assembly / assemblyMergeStrategy := {
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case x => MergeStrategy.first
+}
 
-javaOptions in run += "-Dspark.driver.logLevel=OFF"
+run / javaOptions += "-Dspark.driver.logLevel=OFF"
 
 val sparkVersion = "3.5.1"
 
