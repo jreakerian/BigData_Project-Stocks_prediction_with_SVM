@@ -1,1 +1,1 @@
-Project For Course on Big Data Analytics. Prediction Model
+Project for Course on Big Data Analytics. Prediction Model
